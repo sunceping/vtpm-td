@@ -6,6 +6,7 @@
 extern void *__fw_malloc(size_t n);
 extern void __fw_free(void *p);
 extern uint32_t __fw_rdrand32(void);
+extern void *__fw_realloc(void *p, size_t n);
 
 void *malloc(size_t n)
 {
@@ -19,8 +20,16 @@ void free(void *p)
 
 void *realloc(void *p, size_t n)
 {
-    assert(0);
-    return (void *)0;
+    if(n == 0) {
+        return NULL;
+    }
+
+    if (p == NULL)
+    {
+       return malloc(n); 
+    }
+        
+    return __fw_realloc(p,n); 
 }
 
 int rand(void)

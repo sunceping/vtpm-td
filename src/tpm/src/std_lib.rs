@@ -65,3 +65,26 @@ pub unsafe extern "C" fn __fw_free(ptr: *mut c_void) {
         alloc::alloc::dealloc(ptr as *mut u8, Layout::from_size_align_unchecked(*size, 1))
     }
 }
+
+#[no_mangle]
+pub unsafe extern "C" fn __fw_realloc(ptr: *mut c_void, new_size: usize) -> *mut c_void {
+    let mut old_size: usize = 0;
+    if let Some(size) = MALLOC_TABLE.lock().get(&(ptr as usize)) {
+        old_size = *size;
+    }
+
+    let new_ptr =
+        alloc::alloc::alloc(Layout::from_size_align_unchecked(new_size, 1)) as *mut c_void;
+    MALLOC_TABLE.lock().insert(new_ptr as usize, new_size);
+
+    unsafe {
+        core::ptr::copy(ptr, new_ptr, core::cmp::min(old_size, new_size));
+    }
+
+    alloc::alloc::dealloc(
+        ptr as *mut u8,
+        Layout::from_size_align_unchecked(old_size, 1),
+    );
+
+    new_ptr
+}
