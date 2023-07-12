@@ -31,3 +31,7 @@ struct tm *gmtime(const time_t *t)
 	tm.__tm_zone = __utc;
 	return &tm;
 }
+
+int gettimeofday ( struct timeval * tv , struct timezone * tz ){
+  return 1;
+}

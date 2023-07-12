@@ -145,17 +145,3 @@ void ossl_rand_pool_keep_random_devices_open(
 {
 }
 
-
-struct timeval {
-  long tv_sec;      /* time value, in seconds */
-  long tv_usec;     /* time value, in microseconds */
-};
-struct timezone {
-	int	tz_minuteswest;	/* minutes west of Greenwich */
-	int	tz_dsttime;	/* type of dst correction */
-};
-
-int gettimeofday ( struct timeval * tv , struct timezone * tz ){
-  return 1;
-}
-
