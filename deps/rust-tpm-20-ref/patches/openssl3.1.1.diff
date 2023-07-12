@@ -1,14 +1,3 @@
-From 5f9f07b8ac6cc4ebf8aec76aa6162b9f364fe643 Mon Sep 17 00:00:00 2001
-From: "Sun, Ceping" <cepingx.sun@intel.com>
-Date: Tue, 11 Jul 2023 17:22:13 +0530
-Subject: [PATCH] support openssl3.1.1 test
-
-Signed-off-by: Sun, Ceping <cepingx.sun@intel.com>
----
- TPMCmd/configure.ac                     | 5 ++++-
- TPMCmd/tpm/include/Ossl/TpmToOsslMath.h | 4 ++--
- 2 files changed, 6 insertions(+), 3 deletions(-)
-
 diff --git a/TPMCmd/configure.ac b/TPMCmd/configure.ac
 index 58a74b4..4ff3253 100644
 --- a/TPMCmd/configure.ac
@@ -43,6 +32,3 @@ index 9836a3d..0cf9fea 100644
      // from crypto/bn/bn_lcl.h
      struct bignum_st {
          BN_ULONG *d;                /* Pointer to an array of 'BN_BITS2' bit
--- 
-2.39.1
-
