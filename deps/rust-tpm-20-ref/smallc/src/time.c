@@ -1,5 +1,6 @@
 #include <time.h>
 #include <errno.h>
+#include <assert.h>
 
 const char __utc[] = "UTC";
 
@@ -30,4 +31,19 @@ struct tm *gmtime(const time_t *t)
 	tm.__tm_gmtoff = 0;
 	tm.__tm_zone = __utc;
 	return &tm;
+}
+
+// Add an empty implementation for gettimeofday
+struct timeval {
+  long tv_sec;      /* time value, in seconds */
+  long tv_usec;     /* time value, in microseconds */
+};
+struct timezone {
+	int	tz_minuteswest;	/* minutes west of Greenwich */
+	int	tz_dsttime;	/* type of dst correction */
+};
+
+int gettimeofday ( struct timeval * tv , struct timezone * tz ){
+  assert(0);
+  return 1;
 }
