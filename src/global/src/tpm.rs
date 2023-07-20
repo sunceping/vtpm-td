@@ -54,3 +54,36 @@ impl GlobalTpmData {
         sensitive_data_cleanup(&mut self.nv_mem);
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use core::mem::{align_of, size_of};
+
+    #[test]
+    fn test_struct_size_alignment() {
+        assert_eq!(align_of::<GlobalTpmData>(), 4);
+        assert_eq!(size_of::<GlobalTpmData>(), 16404);
+    }
+    #[test]
+    fn test_function() {
+        let mut globaltpmdata = GlobalTpmData::new();
+        assert_eq!(globaltpmdata.tpm_active, globaltpmdata.tpm_active());
+        let active = true;
+        globaltpmdata.set_tpm_active(active);
+        assert_eq!(globaltpmdata.tpm_active, globaltpmdata.tpm_active());
+        assert_eq!(globaltpmdata.tpm_active, active);
+        assert_eq!(globaltpmdata.tpm_active(), active);
+        assert_eq!(globaltpmdata.nv_mem, globaltpmdata.tpm2_nv_mem());
+        let nv_mem_data: [u8; TPM2_NV_SIZE] = [1; TPM2_NV_SIZE];
+        let _ = globaltpmdata.set_nv_mem(&nv_mem_data);
+
+        assert_eq!(globaltpmdata.nv_mem, nv_mem_data);
+        assert_eq!(globaltpmdata.tpm2_nv_mem(), nv_mem_data);
+        globaltpmdata.clean_nv_mem();
+        let zerodata: [u8; TPM2_NV_SIZE] = [0; TPM2_NV_SIZE];
+        assert_eq!(globaltpmdata.nv_mem, globaltpmdata.tpm2_nv_mem());
+        assert_eq!(globaltpmdata.nv_mem, zerodata);
+        assert_eq!(globaltpmdata.tpm2_nv_mem(), zerodata);
+    }
+}

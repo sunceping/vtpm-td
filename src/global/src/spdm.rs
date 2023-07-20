@@ -111,3 +111,55 @@ impl GlobalSpdmData {
         }
     }
 }
+
+#[cfg(test)]
+
+mod test {
+    use super::*;
+    use core::mem::{align_of, size_of};
+
+    #[test]
+    fn test_struct_size_alignment() {
+        assert_eq!(align_of::<GlobalSpdmData>(), 8);
+        assert_eq!(size_of::<GlobalSpdmData>(), 4320);
+    }
+
+    #[test]
+    fn test_globalspdmdata() {
+        let mut globalspdmdata = GlobalSpdmData::new();
+        let vtpmid = 1 as u128;
+        globalspdmdata.set_vtpm_id(vtpmid);
+        assert_eq!(globalspdmdata.vtpm_id().is_err(), true);
+        assert_eq!(globalspdmdata.operation().is_err(), true);
+        assert_eq!(globalspdmdata.data().is_none(), true);
+        assert_eq!(globalspdmdata.pkcs8().is_none(), true);
+        assert_eq!(vtpmid, globalspdmdata.vtpm_id);
+        globalspdmdata.valid = true;
+        assert_eq!(vtpmid, globalspdmdata.vtpm_id().unwrap());
+        let operation = TdVtpmOperation::Create;
+        globalspdmdata.set_operation(operation);
+        assert_eq!(operation, globalspdmdata.operation().unwrap());
+        let mut data1: [u8; VTPM_MAX_BUFFER_SIZE + 1] = [0xff; VTPM_MAX_BUFFER_SIZE + 1];
+        let result = globalspdmdata.set_data(&mut data1);
+        assert_eq!(result.is_err(), true);
+        let mut data2: [u8; 0x199] = [0xff; 0x199];
+        let result = globalspdmdata.set_data(&mut data2);
+        assert_eq!(result.unwrap(), 0x199);
+        assert_eq!(globalspdmdata.data().unwrap(), data2);
+        globalspdmdata.clear_data();
+        assert_eq!(globalspdmdata.data_size, 0);
+        let mut pkcs8test1: [u8; PKCS8_DOCUMENT_MAX_LEN + 1] = [0x89; PKCS8_DOCUMENT_MAX_LEN + 1];
+        let result1 = globalspdmdata.set_pkcs8(&mut pkcs8test1);
+        assert_eq!(result1.is_err(), true);
+        let mut pkcs8test1: [u8; PKCS8_DOCUMENT_MAX_LEN] = [0x89; PKCS8_DOCUMENT_MAX_LEN];
+        let result1 = globalspdmdata.set_pkcs8(&mut pkcs8test1);
+        assert_eq!(result1.unwrap(), PKCS8_DOCUMENT_MAX_LEN);
+        assert_eq!(globalspdmdata.pcks8_size, PKCS8_DOCUMENT_MAX_LEN);
+        assert_eq!(globalspdmdata.pkcs8().unwrap(), pkcs8test1);
+        globalspdmdata.clean_pkcs8();
+        let zerodpkc8: [u8; PKCS8_DOCUMENT_MAX_LEN] = [0; PKCS8_DOCUMENT_MAX_LEN];
+        assert_eq!(globalspdmdata.pkcs8().unwrap(), zerodpkc8);
+        globalspdmdata.clear();
+        assert_eq!(globalspdmdata.vtpm_id().is_err(), true);
+    }
+}
