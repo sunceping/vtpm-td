@@ -96,3 +96,29 @@ pub fn build_command_header_and_size(
     packet.set_length(data_buffer_len as u32);
     Ok(data_buffer_len)
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+    fn test_build_cmd_header() {
+        let mut data_buffer: [u8; 0x1000] = [0; 0x1000];
+        let buffer: [u8; 16] = [0xff; 16];
+        let guid: Guid = Guid::from_bytes(&buffer);
+        let res = build_command_header(guid, &mut data_buffer);
+        assert_eq!(res.unwrap(), data_buffer.len());
+        assert_eq!(data_buffer[field::GUID], buffer);
+        assert_eq!(
+            LittleEndian::read_u32(&data_buffer[field::LENGTH]),
+            data_buffer.len() as u32
+        );
+    }
+
+    #[test]
+    fn test_zerodata() {
+        let buffer: [u8; 16] = [0xff; 16];
+        let guid: Guid = Guid::from_bytes(&buffer);
+        let res = build_command_header(guid, &mut []);
+        assert!(res.is_err());
+    }
+}

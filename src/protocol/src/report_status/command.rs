@@ -107,3 +107,74 @@ pub fn build_command(
     }
     Ok(data_len + HEADER_LEN)
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_packet() {
+        let mut buffer: [u8; 0x1000] = [0xff; 0x1000];
+        let mut packet = Packet::new_unchecked(&mut buffer);
+        let version = 99;
+        let command = 0xff;
+        let status = 1;
+        let vtpm_id = 0x10000 as u128;
+        let operation = 0 as u8;
+        let data: [u8; 0x100] = [0x11; 0x100];
+        packet.set_version(version);
+        packet.set_command(command);
+        packet.set_status(status);
+        packet.set_tdvm_id(vtpm_id);
+        packet.set_operation(operation);
+        let data_len = packet.set_data(&data);
+        assert_eq!(data_len.unwrap(), data.len());
+        assert_eq!(buffer[field::DATA][0..data.len()], data);
+        assert_eq!(buffer[field::VERSION], version);
+        assert_eq!(buffer[field::COMMAND], command);
+        assert_eq!(buffer[field::STATUS], status);
+        assert_eq!(buffer[field::OPERATION], operation);
+        assert_eq!(
+            LittleEndian::read_u128(&mut buffer[field::TDVM_ID]),
+            vtpm_id
+        );
+    }
+
+    #[test]
+    fn test_build_cmd() {
+        let mut buffer: [u8; 0x1000] = [0xff; 0x1000];
+        let status = 1;
+        let vtpm_id = 0x10000 as u128;
+        let operation = 0 as u8;
+        let data: [u8; 0x100] = [0x11; 0x100];
+        let res = build_command(vtpm_id, operation, status, &data, &mut buffer);
+        assert_eq!(res.unwrap(), data.len() + HEADER_LEN);
+        assert_eq!(buffer[field::STATUS], status);
+        assert_eq!(buffer[field::OPERATION], operation);
+        assert_eq!(
+            LittleEndian::read_u128(&mut buffer[field::TDVM_ID]),
+            vtpm_id
+        );
+        assert_eq!(buffer[field::DATA][0..data.len()], data);
+    }
+
+    #[test]
+    fn test_zerodata() {
+        let mut buffer: [u8; 0x1000] = [0xff; 0x1000];
+        let status = 1;
+        let vtpm_id = 0x10000 as u128;
+        let operation = 0 as u8;
+        let res = build_command(vtpm_id, operation, status, &[], &mut buffer);
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn tese_zerodest() {
+        let data: [u8; 0x1000] = [0xff; 0x1000];
+        let status = 1;
+        let vtpm_id = 0x10000 as u128;
+        let operation = 0 as u8;
+        let res = build_command(vtpm_id, operation, status, &data, &mut []);
+        assert!(res.is_err());
+    }
+}

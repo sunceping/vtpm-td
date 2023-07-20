@@ -81,3 +81,26 @@ pub fn build_response_header(data_buffer: &mut [u8]) -> VtpmResult<usize> {
     packet.set_command(COMMAND_REPORT_STATUS);
     Ok(HEADER_LEN)
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_packet() {
+        let mut data_buffer: [u8; 0x100] = [0; 0x100];
+        let version = 100 as u8;
+        let command = 0xff as u8;
+        let mut packet = Packet::new_unchecked(&mut data_buffer);
+        packet.set_version(version);
+        packet.set_command(command);
+        assert_eq!(data_buffer[field::VERSION], version);
+        assert_eq!(data_buffer[field::COMMAND], command);
+    }
+
+    #[test]
+    fn test_zerodata() {
+        let res = build_response_header(&mut []);
+        assert!(res.is_err());
+    }
+}

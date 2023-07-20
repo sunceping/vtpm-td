@@ -107,3 +107,25 @@ pub fn build_response_header(data_buffer: &mut [u8], vtpm_id: u128) -> VtpmResul
     packet.set_tdvm_id(vtpm_id);
     Ok(data_buffer_len)
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+    fn test_build_cmd_header() {
+        let mut data_buffer: [u8; 0x1000] = [0; 0x1000];
+        let vtpmid = 101 as u128;
+        let res = build_response_header(&mut data_buffer, vtpmid);
+        assert_eq!(res.unwrap(), data_buffer.len());
+        assert_eq!(
+            LittleEndian::read_u128(&data_buffer[field::TDVM_ID]),
+            vtpmid
+        );
+    }
+
+    #[test]
+    fn test_zerodata() {
+        let res = build_response_header(&mut [], 0);
+        assert!(res.is_err());
+    }
+}
