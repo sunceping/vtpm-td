@@ -9,7 +9,7 @@ use super::{COMMAND_REPORT_STATUS, DEFAULT_VERSION};
 /// 5.1.8 vTPM TD SendCommunication
 ///
 use byteorder::{ByteOrder, LittleEndian};
-use global::VtpmResult;
+use global::{VtpmError, VtpmResult};
 use td_uefi_pi::pi::guid::Guid;
 
 /// TODO: FIXME: comment reference error!
@@ -95,6 +95,11 @@ pub fn build_command(
     dest_buffer: &mut [u8],
 ) -> VtpmResult<usize> {
     let data_buffer_len = data_buffer.len();
+    let dest_buffer_len = dest_buffer.len();
+    let total_size = HEADER_LEN + data_buffer_len;
+    if dest_buffer_len < total_size {
+        return Err(VtpmError::OutOfResource);
+    }
     let mut packet = Packet::new_unchecked(dest_buffer);
     packet.set_version(DEFAULT_VERSION);
     packet.set_command(COMMAND_REPORT_STATUS);
