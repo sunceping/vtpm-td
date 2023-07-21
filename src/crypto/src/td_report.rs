@@ -89,3 +89,49 @@ pub fn verify_td_report(td_report: &[u8]) -> SpdmResult {
 
     Ok(())
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use core::mem::size_of;
+    #[test]
+    fn test_tdx_reportmacbuf() {
+        let mut buffer = TdxReportMacBuf::new();
+        assert_eq!(
+            buffer.report_mac_buf_start(),
+            (buffer.start + buffer.offset) as u64
+        );
+        let data = buffer.report_mac_buf_mut();
+        print!("len is {}\n", data.len());
+        // for  d in data {
+        //     print!("d is {}\n",d);
+        // }
+        // assert_eq!(buffer.end, TD_REPORT_MAC_BUF_SIZE);
+        print!("buffer adddress is 0x{:x}\n", buffer.report_mac_buf_start());
+        let size = size_of::<TdxReportMacBuf>();
+        print!("size is {}\n", size);
+        print!("buffer start is 0x{:X}\n", buffer.start);
+        print!(
+            "buffer start + offset is 0x{:X}\n",
+            buffer.start + buffer.offset
+        );
+        print!("buffer offset is {}\n", buffer.offset);
+        print!("buffer end is {}\n", buffer.end);
+    }
+
+    #[test]
+    fn test_verify_td_report_error_data() {
+        let mut td_report: [u8; 0x1000] = [0xff; 0x1000];
+        let res = verify_td_report(&mut td_report);
+        assert!(res.is_err());
+    }
+
+    // #[test]
+    // #[should_panic]
+    // fn test_verify_td_report(){
+    //     let mut td_report: [u8; 1024] = [0xff; 1024];
+    //     let res = verify_td_report(&mut td_report);
+    //     assert!(res.is_err());     
+    // }
+
+}
