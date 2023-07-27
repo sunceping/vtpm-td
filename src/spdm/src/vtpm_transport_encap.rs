@@ -219,3 +219,50 @@ impl SpdmTransportEncap for VtpmTransportEncap {
         VTPM_MAX_RANDOME_DATA_COUNT
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_vtpmtransport_appmessage_header() {
+        let appmh = VtpmTransportAppMessageHeader {
+            message_type:VtpmTransportAppMessageType::VtpmTransportAppMessageTypeSpdm,
+        };
+        let bytes = [1u8;10];
+        let mut reader = Reader::init(&bytes);
+        let res = VtpmTransportAppMessageHeader::read(&mut reader);
+        print!("res is {:?}\n",res);
+    }
+
+
+    #[test]
+    fn test_encap(){
+        let mut vtpm_encap = VtpmTransportEncap::default();
+        let spdm_buffer = [1u8;100];
+        let mut buffer = [0u8;1024];
+        let res = vtpm_encap.encap(&spdm_buffer, &mut buffer, false);
+        print!("res is {:?}\n",res);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_encap_invalid_buffer(){
+        let mut vtpm_encap = VtpmTransportEncap::default();
+        let spdm_buffer = [1u8;100];
+        let res = vtpm_encap.encap(&spdm_buffer, &mut [], false);
+        print!("res is {:?}\n",res);
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_decap(){
+        let mut vtpm_encap = VtpmTransportEncap::default();
+        let spdm_buffer = [1u8;100];
+        let mut buffer = [0u8;1024];
+        let res = vtpm_encap.encap(&spdm_buffer, &mut buffer, false);
+        print!("res is {:?}\n",res);
+    }
+
+
+}

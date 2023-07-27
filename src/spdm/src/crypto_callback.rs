@@ -62,3 +62,40 @@ fn sign_ecdsa_asym_algo(
         data: full_signature,
     })
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_asym_sign() {
+        let mut data = [2u8;0x100];
+        let base_hash_algo = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        let base_asym_algo = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+        let res = asym_sign(base_hash_algo, base_asym_algo, &mut data);
+        print!("res is {:?}\n",res);
+    }
+
+    #[test]
+    fn test_sign_ecdsa_asym_algo(){
+        let mut data = [2u8;96];
+        let res = sign_ecdsa_asym_algo(&ring::signature::ECDSA_P384_SHA384_FIXED_SIGNING, &mut data);
+        print!("res is {:?}\n",res);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_sign_ecdsa_asym_algo_other_algo(){
+        let mut data = [2u8;96];
+        sign_ecdsa_asym_algo(&ring::signature::ECDSA_P256_SHA256_FIXED_SIGNING, &mut data);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_asym_sign_other_algo(){
+        let mut data = [2u8;0x100];
+        let base_hash_algo = SpdmBaseHashAlgo::TPM_ALG_SHA_256;
+        let base_asym_algo = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256;
+        asym_sign(base_hash_algo, base_asym_algo, &mut data);
+    }
+}

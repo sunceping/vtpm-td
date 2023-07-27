@@ -124,3 +124,26 @@ impl SpdmDeviceIo for VtpmIoTransport {
         todo!()
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    #[should_panic]
+    fn test_vtpmio_transport_send() {
+        let mut vtpmio = VtpmIoTransport::new(101);
+        let buffer =[1u8;100];
+        let res = vtpmio.send(&buffer);
+        assert!(res.is_err());
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_vtpmio_transport_recive() {
+        let mut vtpmio = VtpmIoTransport::new(101);
+        let mut buffer =[1u8;100];
+        let res = vtpmio.receive(&mut buffer, 0);
+        assert!(res.is_err());
+    }
+}
