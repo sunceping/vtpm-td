@@ -3,7 +3,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use codec::{enum_builder, Codec, EncodeErr, Reader, Writer};
-use spdmlib::{common::SpdmTransportEncap, error::SpdmResult};
+use spdmlib::{
+    common::SpdmTransportEncap,
+    error::{SpdmResult, SPDM_STATUS_INVALID_PARAMETER},
+};
 
 enum_builder! {
     @U8
@@ -100,8 +103,7 @@ impl SpdmTransportEncap for VtpmTransportEncap {
 
         let header_size = writer.used();
         if transport_buffer.len() < header_size + payload_len {
-            // return spdm_result_err!(EINVAL);
-            todo!()
+            return Err(SPDM_STATUS_INVALID_PARAMETER);
         }
         transport_buffer[header_size..(header_size + payload_len)].copy_from_slice(spdm_buffer);
         Ok(header_size + payload_len)
@@ -128,16 +130,20 @@ impl SpdmTransportEncap for VtpmTransportEncap {
                 }
             }
             None => {
-                todo!()
-            } // return spdm_result_err!(EIO),
+                return Err(SPDM_STATUS_INVALID_PARAMETER);
+            }
         }
 
         let header_size = reader.used();
+
+        if header_size > transport_buffer.len() {
+            return Err(SPDM_STATUS_INVALID_PARAMETER);
+        }
+
         let payload_size = transport_buffer.len() - header_size;
 
         if spdm_buffer.len() < payload_size {
-            // return spdm_result_err!(EINVAL);
-            todo!()
+            return Err(SPDM_STATUS_INVALID_PARAMETER);
         }
 
         let payload = &transport_buffer[header_size..];
@@ -169,8 +175,7 @@ impl SpdmTransportEncap for VtpmTransportEncap {
 
         let header_size = writer.used();
         if app_data.len() < app_message_len + header_size {
-            // return spdm_result_err!(EINVAL);
-            todo!()
+            return Err(SPDM_STATUS_INVALID_PARAMETER);
         }
 
         app_data[header_size..(header_size + app_message_len)].copy_from_slice(app_message);
@@ -195,8 +200,8 @@ impl SpdmTransportEncap for VtpmTransportEncap {
                 }
             }
             None => {
-                todo!()
-            } // return spdm_result_err!(EIO),
+                return Err(SPDM_STATUS_INVALID_PARAMETER);
+            }
         }
 
         let header_size = reader.used();
@@ -204,8 +209,7 @@ impl SpdmTransportEncap for VtpmTransportEncap {
 
         let app_message_size = app_data.len() - header_size;
         if app_message.len() < app_message_size {
-            // return spdm_result_err!(EINVAL);
-            todo!()
+            return Err(SPDM_STATUS_INVALID_PARAMETER);
         }
         app_message[..app_message_size].copy_from_slice(&app_data[header_size..]);
 
