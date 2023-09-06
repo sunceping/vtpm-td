@@ -2,6 +2,7 @@ readonly script_name=${0##*/}
 
 unit_test_folder=(
     "src/protocol"
+    "src/global"
 )
 
 export RUSTFLAGS="-Cinstrument-coverage"
