@@ -120,9 +120,9 @@ impl SpdmDeviceIo for VtpmIoTransport {
         Ok(())
     }
 
-    fn as_any(&mut self) -> &mut dyn core::any::Any {
-        todo!()
-    }
+    // fn as_any(&mut self) -> &mut dyn core::any::Any {
+    //     self
+    // }
 }
 
 #[cfg(test)]
