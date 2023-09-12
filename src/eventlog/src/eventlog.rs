@@ -43,3 +43,71 @@ pub fn get_event_log() -> &'static mut [u8] {
         .expect("Failed to find CCEL");
     get_event_log_from_acpi(ccel).expect("Fail to get event log according CCEL\n")
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use cc_measurement::TcgEfiSpecIdevent;
+    use cc_measurement::TpmlDigestValues;
+
+    const INVALID_CCEL_SIZE: usize = 10;
+    const TEST_LAML_SIZE: usize = 0x100;
+    const TEST_EVENT_SIZE: usize = 1;
+
+    #[test]
+    fn test_get_event_log_from_acpi() {
+        let buffer = [0xffu8; TEST_LAML_SIZE];
+        let laml = buffer.len() as u64;
+        let lasa: u64 = &buffer as *const u8 as u64;
+        let mut ccel = Ccel::new(2, 0, laml, lasa);
+        let mut acpi = &ccel.as_bytes();
+        let event_log = get_event_log_from_acpi(acpi);
+        assert_eq!(event_log.unwrap(), buffer);
+        let bufer = [1u8; INVALID_CCEL_SIZE];
+        let status = get_event_log_from_acpi(&bufer);
+        assert!(status.is_none());
+    }
+
+    #[test]
+    fn test_event_log_size() {
+        let mut hdr = TcgPcrEventHeader::new_zeroed();
+        let mut pcr_even_header = hdr.as_bytes();
+        let tdcgefi = TcgEfiSpecIdevent::default();
+        let efispec = tdcgefi.as_bytes();
+        let hdr = CcEventHeader {
+            mr_index: 1,
+            event_type: 10,
+            digest: TpmlDigestValues {
+                count: 0,
+                digests: Default::default(),
+            },
+            event_size: TEST_EVENT_SIZE as u32,
+        };
+        let mut cc_header = hdr.as_bytes();
+        let mut buffer = [0u8; TEST_LAML_SIZE];
+        let mut start = 0;
+        let mut end = size_of::<TcgPcrEventHeader>();
+        buffer[start..end].copy_from_slice(pcr_even_header);
+        start = end;
+        end = start + size_of::<TcgEfiSpecIdevent>();
+        buffer[start..end].copy_from_slice(efispec);
+        start = end;
+        end = start + size_of::<CcEventHeader>();
+        buffer[start..end].copy_from_slice(cc_header);
+        let laml = buffer.len() as u64;
+        let lasa: u64 = &buffer as *const u8 as u64;
+        let mut ccel = Ccel::new(2, 0, laml, lasa);
+        let mut acpi = &ccel.as_bytes();
+        let event_log = get_event_log_from_acpi(acpi);
+        let res = event_log_size(event_log.unwrap());
+        let size = size_of::<TcgPcrEventHeader>() + size_of::<CcEventHeader>() + TEST_EVENT_SIZE;
+        assert!(res.is_some());
+        assert_eq!(res.unwrap(), size);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_get_event_log() {
+        let mut event_log = get_event_log();
+    }
+}
