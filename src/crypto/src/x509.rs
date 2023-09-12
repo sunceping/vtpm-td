@@ -648,3 +648,246 @@ impl<'a> Sequence<'a> for Extension<'a> {
 }
 
 pub type ExtendedKeyUsage = alloc::vec::Vec<ObjectIdentifier>;
+
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    // use ring::pkcs8::Document;
+    use ring::rand::SystemRandom;
+    use ring::signature::{self, EcdsaKeyPair, KeyPair};
+    use zerocopy::AsBytes;
+    const ID_EC_PUBKEY_OID: ObjectIdentifier = ObjectIdentifier::new("1.2.840.10045.2.1");
+    const SECP384R1_OID: ObjectIdentifier = ObjectIdentifier::new("1.3.132.0.34");
+
+    #[test]
+    fn test_new_cert() {
+        let algorithm = AlgorithmIdentifier {
+            algorithm: ID_EC_PUBKEY_OID,
+            parameters: Some(Any::new(Tag::ObjectIdentifier, SECP384R1_OID.as_bytes()).unwrap()),
+        };
+
+        let rand = SystemRandom::new();
+        let pkcs8_bytes =
+            EcdsaKeyPair::generate_pkcs8(&signature::ECDSA_P384_SHA384_ASN1_SIGNING, &rand)
+                .map_err(|_| 0);
+        let pkc8 = pkcs8_bytes.unwrap();
+        let key_pair = ring::signature::EcdsaKeyPair::from_pkcs8(
+            &signature::ECDSA_P384_SHA384_ASN1_SIGNING,
+            pkc8.as_ref(),
+        );
+        let key = key_pair.unwrap();
+        print!("public key is {:?}\n",key.public_key());
+
+        let mut certificatebuilder =
+            CertificateBuilder::new(algorithm, algorithm, key.public_key().as_ref());
+        print!("cert new is {}\n", certificatebuilder.is_err());
+        assert_eq!(certificatebuilder.is_err(), false);
+
+        // 1970-01-01T00:00:00Z
+        certificatebuilder = certificatebuilder
+            .unwrap()
+            .set_not_before(core::time::Duration::new(0, 0));       
+ 
+        print!("cert set_not_before is {}\n", certificatebuilder.is_err());
+        assert_eq!(certificatebuilder.is_err(), false);
+       // 9999-12-31T23:59:59Z
+        certificatebuilder = certificatebuilder
+            .unwrap()
+            .set_not_after(core::time::Duration::new(253402300799, 0));
+        print!("cert set_not_after is {}\n", certificatebuilder.is_err());
+        assert_eq!(certificatebuilder.is_err(), false);
+
+        certificatebuilder = certificatebuilder
+            .unwrap()
+            .set_public_key(algorithm, key.public_key().as_ref());
+        print!("cert set_public_key is {}\n", certificatebuilder.is_err());
+        assert_eq!(certificatebuilder.is_err(), false);
+
+        let extn_id: ObjectIdentifier = ObjectIdentifier::new("2.5.29.37");
+        let value :[u8;0x100] = [0xff;0x100];
+        let extension = Extension::new(extn_id, Some(false), Some(&value));
+        certificatebuilder = certificatebuilder.unwrap().add_extension(extension.unwrap());
+
+        let mut sig_buf : alloc::vec::Vec<u8> = alloc::vec::Vec::new();
+        let signer = |data: &[u8], sig_buf: &mut alloc::vec::Vec<u8>| {
+            let rand = SystemRandom::new();
+            let signature = key.sign(&rand, data).unwrap();
+            sig_buf.extend_from_slice(signature.as_ref());
+        };
+        certificatebuilder = certificatebuilder.unwrap().sign(&mut sig_buf, signer);
+        print!("cert sign is {}\n", certificatebuilder.is_err());
+        assert_eq!(certificatebuilder.is_err(), false);
+
+        let mut cert = certificatebuilder.unwrap().build();
+
+        let tb_cert = cert.tbs_certificate();
+        print!("tb_cert signature is {:?}\n",tb_cert.signature);
+        assert_eq!(tb_cert.signature, algorithm);
+
+        print!("cert {:?}\n", cert.tbs_certificate().validity.not_before);
+        print!("cert {:?}\n", cert.tbs_certificate().validity.not_after);
+        print!("Public key algorithm is {:?}\n",  cert.tbs_certificate.subject_public_key_info.algorithm);
+        // print!("Public key info is {:?}\n",  cert.tbs_certificate.subject_public_key_info.subject_public_key.raw_bytes());
+        assert_eq!(cert.tbs_certificate.subject_public_key_info.algorithm,algorithm);
+
+        let data = [0u8;100];
+        let res = cert.set_signature(&data);
+        assert!(res.is_ok());
+
+    }
+
+    #[test]
+    fn test_extension_new_none(){
+        let extn_id: ObjectIdentifier = ObjectIdentifier::new("2.5.29.37");
+        let extension = Extension::new(extn_id, Some(false), None);
+        print!("extension is {}\n",extension.is_err());
+        print!("extension critical is {:?}\n",extension.unwrap().critical);
+    }
+
+    #[test]
+    fn test_version(){
+        let bytes:[u8;1] = [1;1];
+        print!("len {}\n",bytes.as_bytes().len());
+        let uinbytes = UIntBytes::new(&bytes).unwrap();
+        let uinbytes_len = uinbytes.encoded_len().unwrap();
+        print!("uinbytes_len {}\n",uinbytes_len);
+        let uinbytes_len = uinbytes.len();
+        print!("uinbytes_len {}\n",uinbytes_len);
+        let version = Version(uinbytes);
+        let tag = version.tag();
+        print!("tag number is {}\n",tag.number());
+        print!("tag number is {}\n", tag.is_context_specific());
+        assert_eq!(tag.number(), TagNumber::N0);
+        assert_eq!(tag.is_context_specific(), true);
+        let mut can_decode = Version::can_decode(tag);
+        print!("can_decode is {}\n",can_decode);
+        assert_eq!(can_decode,true);
+        let tag_false = Tag::ContextSpecific { constructed: false, number: TagNumber::new(0) };
+        can_decode = Version::can_decode(tag_false);
+        print!("can_decode is {}\n",can_decode);
+        assert_eq!(can_decode,false);
+        let tag_n30 = Tag::ContextSpecific { constructed: true, number: TagNumber::new(30) };
+        can_decode = Version::can_decode(tag_n30);
+        print!("can_decode is {}\n",can_decode);
+        assert_eq!(can_decode,false);
+
+
+        let der_len = version.encoded_len();
+        assert_eq!(der_len.is_err(),false);
+        // assert_eq!(der_len.unwrap(), uinbytes_len + 3);
+        print!("der_len is {}\n",der_len.unwrap());
+
+        let bytes:[u8;1] = [0;1];
+        print!("len {}\n",bytes.as_bytes().len());
+        let uinbytes = UIntBytes::new(&bytes).unwrap();
+        let version = Version(uinbytes);
+        let mut bytes = [0u8;10];
+        let mut encode_data = der::Encoder::new(&mut bytes);
+        print!("encode_data is {:?}\n",encode_data);
+        let der_encode = version.encode(&mut encode_data);
+        print!("der_encode is {}\n",der_encode.is_err());
+
+        let buffer:[u8;10] = [0;10];
+        let decoder_res = der::Decoder::new(&buffer);
+        print!("decoder_res is {}\n ",decoder_res.is_err());
+        let mut decoder = decoder_res.unwrap();
+        print!("none {}\n",decoder.is_failed());
+        let res = decoder.any();
+        print!("res is {}\n",res.is_err());
+        let der = Version::decode(&mut decoder);
+        print!("der res is {}\n", der.is_err());
+
+    }
+
+    #[test]
+    fn test_algorithm_identifier(){
+        let algorithm = AlgorithmIdentifier {
+            algorithm: ID_EC_PUBKEY_OID,
+            parameters: Some(Any::new(Tag::ObjectIdentifier, SECP384R1_OID.as_bytes()).unwrap()),
+        };
+        let binding = algorithm.to_vec().unwrap();
+        let buffer= binding.as_slice();
+        let mut decoder = der::Decoder::new(&buffer).unwrap();
+        let res = AlgorithmIdentifier::decode(&mut decoder);
+        print!("res is {}\n", res.is_err());
+    }
+
+    #[test]
+    fn test_extension(){
+        let mut extn_id: ObjectIdentifier = ObjectIdentifier::new("2.5.29.37");
+        let value :[u8;0x100] = [0xff;0x100];
+        let extension = Extension::new(extn_id, Some(false), Some(&value));
+        assert_ne!(extension.is_err(),true);
+        assert_eq!(extension.as_ref().unwrap().extn_id,extn_id);
+        assert_eq!(extension.as_ref().unwrap().critical,Some(false));
+        // assert_eq!(extension.unwrap().extn_value,Some(&value));
+        extn_id = ObjectIdentifier::new("2.5.29.30");
+        let extension =  Extension::new(extn_id, Some(true), Some(&[]));
+        print!("extension is {}\n",extension.is_err());
+        let buffer:[u8;1024] = [0xff;1024];
+        let mut decoder = der::Decoder::new(&buffer).unwrap();
+        let decode_extn = Extension::decode(&mut decoder);
+        print!("decode_extn is {}\n",decode_extn.is_err());
+    }
+
+    #[test]
+    fn test_strcut_extensions(){
+        let extn_id: ObjectIdentifier = ObjectIdentifier::new("2.5.29.37");
+        let value :[u8;0x100] = [0xff;0x100];
+        let extension = Extension::new(extn_id, Some(false), Some(&value)).unwrap();
+        let extensios = Extensions(vec![extension]);
+
+        let tag = extensios.tag();
+        assert_eq!(tag.number(),TagNumber::N3);
+        assert!(tag.is_context_specific());
+        let mut can_decode = Extensions::can_decode(tag);
+        print!("can_decode is {}\n",can_decode);
+        assert_eq!(can_decode,true);
+        let tag_false = Tag::ContextSpecific { constructed: false, number: TagNumber::new(0) };
+        can_decode = Extensions::can_decode(tag_false);
+        print!("can_decode is {}\n",can_decode);
+        assert_eq!(can_decode,false);
+        let tag_n30 = Tag::ContextSpecific { constructed: true, number: TagNumber::new(30) };
+        can_decode = Extensions::can_decode(tag_n30);
+        print!("can_decode is {}\n",can_decode);
+        assert_eq!(can_decode,false);
+        let get_res = extensios.get();
+        assert_eq!(get_res.get(0).unwrap().extn_id,extn_id);
+        assert_eq!(get_res.get(0).unwrap().critical,Some(false));
+
+        let encode_len_res = extensios.encoded_len();
+        assert_ne!(encode_len_res.is_err(),true);
+        print!("encode_len_res is {}\n", encode_len_res.unwrap());
+
+        let mut bytes1 = [0u8;279];
+        let mut encode_data = der::Encoder::new(&mut bytes1);
+        let mut encode_res = extensios.encode(&mut encode_data);
+        print!("encode_res {}\n",encode_res.is_err());
+        assert!(encode_res.is_err());
+        let mut  bytes2 = [0u8;280];
+          encode_data = der::Encoder::new(&mut bytes2);
+         encode_res = extensios.encode(&mut encode_data);
+        assert_ne!(encode_res.is_err(), true);
+    }
+
+    #[test]
+    fn test_subject_publickeyinfo(){
+        let algorithm = AlgorithmIdentifier {
+            algorithm: ID_EC_PUBKEY_OID,
+            parameters: Some(Any::new(Tag::ObjectIdentifier, SECP384R1_OID.as_bytes()).unwrap()),
+        };
+        let public_key =[0u8;96];
+        let subject_public_key_info = SubjectPublicKeyInfo {
+            algorithm,
+            subject_public_key: BitString::new(0, &public_key).unwrap(),
+        };
+        print!("subject_public_key_info is {:?}\n",subject_public_key_info.encoded_len());
+        // const EXAMPLE_MSG: &[u8] = hex::encode("0022FF");
+        let buffer = [0u8;120];
+        let mut decoder = der::Decoder::new(&buffer).unwrap();
+        let res = SubjectPublicKeyInfo::decode(&mut decoder);
+        print!("res is {}\n",res.is_err());
+    }
+
+}

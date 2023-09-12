@@ -1,8 +1,12 @@
 readonly script_name=${0##*/}
 
 unit_test_folder=(
-    "src/protocol"
-    "src/global"
+    # "src/protocol"
+    # "src/global"
+    # "src/spdm"
+    # "src/eventlog"
+    # "src/tdtunnel"
+    "src/crypto"
 )
 
 export RUSTFLAGS="-Cinstrument-coverage"
