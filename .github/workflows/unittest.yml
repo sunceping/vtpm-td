@@ -66,3 +66,9 @@ jobs:
           pushd src/spdm
           cargo test
           popd
+
+      - name: Unit Test for src/eventlog
+        run: |
+          pushd src/spdm
+          cargo test
+          popd
