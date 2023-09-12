@@ -2,6 +2,7 @@ readonly script_name=${0##*/}
 
 unit_test_folder=(
     "src/protocol"
+    "src/global"
 )
 
 export RUSTFLAGS="-Cinstrument-coverage"
@@ -13,6 +14,7 @@ for path in ${unit_test_folder[@]}; do
     pushd $path
     cargo test
     grcov . --binary-path ../../target/debug/ -s . -t html --branch --ignore-not-existing -o unit_test_coverage
+    rm unittest-*.profraw
     popd
 done
 
