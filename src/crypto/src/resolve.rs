@@ -254,3 +254,29 @@ pub fn verify_peer_cert(cert_chain: &[u8], td_report_buf: &mut [u8]) -> SpdmResu
 
     Ok(())
 }
+
+#[test]
+    fn test_generate_ecdsa_keypairs() {
+        let res = generate_ecdsa_keypairs();
+        assert_eq!(res.is_none(), false);
+    }
+    #[test]
+    fn test_verify_peer_cert_invalid_cert() {
+        let mut td_report_buf: [u8; 1024] = [00; 1024];
+        let res = verify_peer_cert(&[], &mut td_report_buf);
+        assert!(res.is_err());
+    }
+
+    // #[test]
+    // fn test_verify_peer_cert() {
+    //     let mut td_report_buf: [u8; 1024] = [00; 1024];
+    //     let res = verify_peer_cert(&CERT_TEST, &mut td_report_buf);
+    //     assert!(res.is_err());
+    // }
+
+    // #[test]
+    // fn test_verify_peer_cert_invalid_buffer() {
+    //     let res = verify_peer_cert(&CERT_TEST, &mut []);
+    //     assert!(res.is_err());
+    //     print!("error is {:?}\n", res.err());
+    // }

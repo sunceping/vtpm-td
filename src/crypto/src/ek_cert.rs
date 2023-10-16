@@ -231,3 +231,127 @@ pub fn generate_ek_cert(
         .to_vec()
         .map_err(|e| ResolveError::GenerateCertificate(X509Error::DerEncoding(e)))
 }
+#[cfg(test)]
+mod test {
+    use super::*;
+    use der::{Decodable, Encodable};
+    use global::tpm::Tpm2Caps;
+    use ring::rand::SystemRandom;
+    use ring::signature::{self, EcdsaKeyPair};
+    use x509::Certificate;
+    use x509::ExtendedKeyUsage;
+    use x509::Extensions;
+
+    #[test]
+    fn test_generate_ek_cert() {
+        let tpm2_caps = Tpm2Caps::default();
+
+        GLOBAL_TPM_DATA.lock().set_tpm2_caps(&tpm2_caps);
+
+        let rand = SystemRandom::new();
+        let pkcs8 = EcdsaKeyPair::generate_pkcs8(&signature::ECDSA_P384_SHA384_ASN1_SIGNING, &rand)
+            .map_err(|_| ResolveError::GenerateKey);
+        let key_pair = ring::signature::EcdsaKeyPair::from_pkcs8(
+            &ring::signature::ECDSA_P384_SHA384_ASN1_SIGNING,
+            pkcs8.unwrap().as_ref(),
+        )
+        .unwrap();
+        let ek_pub = key_pair.public_key().as_ref();
+        let res = generate_ek_cert(&ek_pub, &key_pair);
+        assert!(res.is_ok());
+        let buffer = res.unwrap();
+        let buffer = buffer.as_slice();
+        let mut decoder = der::Decoder::new(&buffer).unwrap();
+        let cert = Certificate::decode(&mut decoder);
+        let bingding = cert.unwrap();
+        let cert_data = bingding.tbs_certificate();
+        let extensions = cert_data.extensions.as_ref().unwrap();
+        let bingding = extensions.to_vec().unwrap();
+        let buffer = bingding.as_slice();
+        let mut decoder = der::Decoder::new(&buffer).unwrap();
+        let extensions = Extensions::decode(&mut decoder);
+        let bingding = extensions.unwrap();
+        let data = bingding.get();
+        let buffer = data.as_slice();
+
+        let basic_constrains: alloc::vec::Vec<bool> = vec![false];
+        let basic_constrains = basic_constrains
+            .to_vec()
+            .map_err(|e| ResolveError::GenerateCertificate(X509Error::DerEncoding(e)));
+        for data in buffer {
+            if data.extn_id == BASIC_CONSTRAINTS {
+                assert_eq!(data.critical, Some(true));
+                let value = data.extn_value.unwrap().as_bytes();
+                assert_eq!(value, basic_constrains.as_ref().unwrap());
+            }
+            if data.extn_id == KEY_USAGE {
+                assert_eq!(data.critical, Some(true));
+            }
+            if data.extn_id == AUTHORITY_KEY_IDENTIFIER {
+                assert_eq!(data.critical, Some(false));
+            }
+            if data.extn_id == SUBJECT_ALT_NAME {
+                assert_eq!(data.critical, Some(true));
+            }
+        }
+    }
+
+    #[test]
+    fn test_generate_ca_cert() {
+        let rand = SystemRandom::new();
+        let pkcs8 = EcdsaKeyPair::generate_pkcs8(&signature::ECDSA_P384_SHA384_ASN1_SIGNING, &rand)
+            .map_err(|_| ResolveError::GenerateKey);
+
+        let key_pair = ring::signature::EcdsaKeyPair::from_pkcs8(
+            &ring::signature::ECDSA_P384_SHA384_ASN1_SIGNING,
+            pkcs8.unwrap().as_ref(),
+        )
+        .unwrap();
+
+        let td_quote = [100u8; 0x100];
+        let event_log = [111u8; 0x100];
+
+        let res = generate_ca_cert(&td_quote, &event_log, &key_pair);
+        assert!(res.is_ok());
+        let buffer = res.unwrap();
+        let buffer = buffer.as_slice();
+        let mut decoder = der::Decoder::new(&buffer).unwrap();
+        let cert = Certificate::decode(&mut decoder);
+        let bingding = cert.unwrap();
+        let cert_data = bingding.tbs_certificate();
+        let extensions = cert_data.extensions.as_ref().unwrap();
+        let bingding = extensions.to_vec().unwrap();
+        let buffer = bingding.as_slice();
+        let mut decoder = der::Decoder::new(&buffer).unwrap();
+        let extensions = Extensions::decode(&mut decoder);
+        let bingding = extensions.unwrap();
+        let data = bingding.get();
+        let buffer = data.as_slice();
+        let basic_constrains: alloc::vec::Vec<bool> = vec![true];
+        let basic_constrains = basic_constrains
+            .to_vec()
+            .map_err(|e| ResolveError::GenerateCertificate(X509Error::DerEncoding(e)));
+        for data in buffer {
+            if data.extn_id == BASIC_CONSTRAINTS {
+                assert_eq!(data.critical, Some(true));
+                let value = data.extn_value.unwrap().as_bytes();
+                assert_eq!(value, basic_constrains.as_ref().unwrap());
+            }
+            if data.extn_id == EXTENDED_KEY_USAGE {
+                let value = data.extn_value.unwrap();
+                let eku = ExtendedKeyUsage::from_der(value.as_bytes()).ok();
+                assert_eq!(eku.unwrap().contains(&VTPMTD_CA_EXTENDED_KEY_USAGE), true);
+            }
+            if data.extn_id == EXTNID_VTPMTD_QUOTE {
+                let value = data.extn_value.unwrap().as_bytes();
+                assert_eq!(data.critical, Some(false));
+                assert_eq!(td_quote, value);
+            }
+            if data.extn_id == EXTNID_VTPMTD_EVENT_LOG {
+                let value = data.extn_value.unwrap().as_bytes();
+                assert_eq!(data.critical, Some(false));
+                assert_eq!(event_log, value);
+            }
+        }
+    }
+}
