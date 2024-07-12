@@ -38,7 +38,7 @@ jobs:
       - name: Checkout sources - TDVF
         run: |
           rm -rf ../vtpm-tdvf
-          git clone --recursive --single-branch -b 2024-tdvf-ww01.4 https://github.com/tianocore/edk2-staging ../vtpm-tdvf
+          git clone --recursive --single-branch -b updateConfigB.v1 https://github.com/sunceping/edk2-staging.git ../vtpm-tdvf
       
       - name: Build vTPM td
         run: |
